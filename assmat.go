@@ -73,6 +73,12 @@ func (c Contract) WorkedDays() float64 {
 	return c.WeekSchedule.Days() * float64(c.WorkedWeeksInYear) / MonthsInYear
 }
 
+func (c Contract) DailySalary() Salary {
+	return Salary(float64(c.BaseSalary()) / c.WorkedDays())
+}
+
+const PajEmploiNetDailySalaryLimit = 39.12
+
 type SalaryMonthSheet struct {
 	Month       int
 	Year        int
