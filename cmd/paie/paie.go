@@ -35,7 +35,13 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: %s\n", err)
 		os.Exit(2)
 	} else {
-		enc := toml.NewEncoder(os.Stdout)
+		f, err := os.Create(dbPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %s\n", err)
+			os.Exit(2)
+		}
+		defer f.Close()
+		enc := toml.NewEncoder(f)
 		enc.Encode(db)
 	}
 

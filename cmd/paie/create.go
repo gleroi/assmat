@@ -27,7 +27,11 @@ const contractPath = "/tmp/CONTRACT"
 func create(globalDb *db, shortName string) error {
 	// prepare a file contract
 	db := NewDb()
-	db.Contracts[shortName] = assmat.Contract{}
+	if contract, ok := globalDb.Contracts[shortName]; ok {
+		db.Contracts[shortName] = contract
+	} else {
+		db.Contracts[shortName] = assmat.Contract{}
+	}
 	f := createContractFile()
 	writeContract(f, db)
 	f.Close()
@@ -54,6 +58,10 @@ func create(globalDb *db, shortName string) error {
 			return err[0]
 		}
 	}
+
+	// print
+	enc := toml.NewEncoder(os.Stdout)
+	enc.Encode(db)
 
 	// save
 	mergeDb(globalDb, db)
