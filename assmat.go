@@ -6,18 +6,7 @@ import "math"
 const DaysInWeek = 7
 const WeeksInYear = 52
 const MonthsInYear = 12
-
-type Day int
-
-const (
-	Monday Day = iota
-	Tuesday
-	Wednesday
-	Thursday
-	Friday
-	Saturday
-	Sunday
-)
+const PajEmploiNetDailySalaryLimit = 39.12
 
 // WeekSchedule is the number of hours worked each day in a week
 type WeekSchedule [DaysInWeek]float64
@@ -31,8 +20,6 @@ func (s WeekSchedule) Hours() float64 {
 	return weekHours
 }
 
-const FullDayHours = 9.0
-
 func (s WeekSchedule) Days() float64 {
 	var days float64
 	for _, d := range s {
@@ -43,19 +30,20 @@ func (s WeekSchedule) Days() float64 {
 	return days
 }
 
-// Contract regroup all to information to calculate the monthly salary of assmat
-type Contract struct {
-	HourlyRate        float64
-	DailyFee          float64
-	WeekSchedule      WeekSchedule
-	WorkedWeeksInYear int
-}
-
 type Salary float64
 
 func (s Salary) Round() float64 {
 	i := math.Round(float64(s) * 100)
 	return float64(i) / 100
+}
+
+// Contract regroup all to information to calculate the monthly salary of assmat
+type Contract struct {
+	Name              string
+	HourlyRate        float64
+	DailyFee          float64
+	WeekSchedule      WeekSchedule
+	WorkedWeeksInYear int
 }
 
 // MonthlySalary computes the base monthly salary
@@ -77,12 +65,8 @@ func (c Contract) DailySalary() Salary {
 	return Salary(float64(c.BaseSalary()) / c.WorkedDays())
 }
 
-const PajEmploiNetDailySalaryLimit = 39.12
+func (c Contract) Validate() []error {
+	var errors []error
 
-type SalaryMonthSheet struct {
-	Month       int
-	Year        int
-	BasicSalary float64
-	Fees        float64
-	Salary      float64
+	return errors
 }
