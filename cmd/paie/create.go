@@ -55,7 +55,7 @@ func create(globalDb *db, shortName string) error {
 	for _, v := range db.Contracts {
 		err := v.Validate()
 		if err != nil {
-			return err[0]
+			return err
 		}
 	}
 

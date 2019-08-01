@@ -1,6 +1,9 @@
 package assmat
 
-import "math"
+import (
+	"fmt"
+	"math"
+)
 
 // DaysInWeek is the number of day in a week
 const DaysInWeek = 7
@@ -65,8 +68,9 @@ func (c Contract) DailySalary() Salary {
 	return Salary(float64(c.BaseSalary()) / c.WorkedDays())
 }
 
-func (c Contract) Validate() []error {
-	var errors []error
-
-	return errors
+func (c Contract) Validate() error {
+	if c.DailySalary() > PajEmploiNetDailySalaryLimit {
+		return fmt.Errorf("Salaire journalier trop haut, %f > %f", c.DailySalary(), PajEmploiNetDailySalaryLimit)
+	}
+	return nil
 }
