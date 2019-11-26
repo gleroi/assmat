@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 
 	"github.com/BurntSushi/toml"
 )
@@ -36,10 +35,7 @@ func create(globalDb *db, shortName string) error {
 	writeContract(f, db)
 	f.Close()
 
-	// open editor
-	// wait for save and close
-	cmd := exec.Command("code", "-w", contractPath)
-	err := cmd.Run()
+	err := openEditor(contractPath)
 	if err != nil {
 		return err
 	}

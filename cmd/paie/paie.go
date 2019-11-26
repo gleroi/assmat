@@ -22,6 +22,7 @@ func main() {
 
 	cmds := map[string]cmd{
 		"contract": &addCmd{db: &db},
+		"month":    &monthCmd{db: &db},
 	}
 
 	args := flag.Args()
