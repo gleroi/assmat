@@ -2,9 +2,11 @@ package main
 
 import (
 	"assmat"
+	"bufio"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -22,6 +24,41 @@ var weekDayStr = []string{
 	"Sam",
 }
 
+type dayEntry struct {
+	day        time.Time
+	WorkedHour float64
+	dailyFee   float64
+}
+
+func newDayEntry(day time.Time, contract assmat.Contract) dayEntry {
+	de := dayEntry{
+		day:        time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, time.UTC),
+		WorkedHour: contract.WeekSchedule[day.Weekday()],
+	}
+	if de.WorkedHour > 0 {
+		de.dailyFee = contract.DailyFee
+	}
+	return de
+}
+
+func (de dayEntry) String() string {
+	return fmt.Sprintf("%s %s %.2f %.2f", weekDayStr[de.day.Weekday()],
+		de.day.Format("02/01/2006"), de.WorkedHour, de.dailyFee)
+}
+
+func (de *dayEntry) UnmarshalText(text []byte) error {
+	var dayStr string
+	var nameStr string
+
+	_, err := fmt.Sscanf(string(text), "%s %s %f %f", &nameStr,
+		&dayStr, &de.WorkedHour, &de.dailyFee)
+	if err != nil {
+		return err
+	}
+	de.day, err = time.Parse("02/01/2006", dayStr)
+	return err
+}
+
 func writeSheet(w io.Writer, contract assmat.Contract, year int, month time.Month) {
 	current := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
 	fmt.Fprintf(w, "#wd date       hour fee\n")
@@ -29,16 +66,33 @@ func writeSheet(w io.Writer, contract assmat.Contract, year int, month time.Mont
 		if current.Weekday() == time.Monday {
 			fmt.Fprintf(w, "\n")
 		}
-		dailyFee := 0.0
-		if contract.WeekSchedule[current.Weekday()] > 0 {
-			dailyFee = contract.DailyFee
-		}
-		fmt.Fprintf(w, "%s %s %.2f %.2f\n", weekDayStr[current.Weekday()],
-			current.Format("02/01/2006"),
-			contract.WeekSchedule[current.Weekday()],
-			dailyFee)
+		de := newDayEntry(current, contract)
+		fmt.Fprintf(w, "%s\n", de)
 		current = current.AddDate(0, 0, 1)
 	}
+}
+
+func readSheet(r io.Reader, contract assmat.Contract, year int, month time.Month) error {
+	scan := bufio.NewScanner(r)
+	count := 0
+
+	feeSum := 0.0
+	for scan.Scan() {
+		count++
+		if scan.Text() == "" || strings.HasPrefix(scan.Text(), "#") {
+			continue
+		}
+		var de dayEntry
+		err := de.UnmarshalText(scan.Bytes())
+		if err != nil {
+			return fmt.Errorf("line %d : %w", count, err)
+		}
+		feeSum += de.dailyFee
+	}
+	fmt.Fprintf(os.Stdout, "Basic salary: %.2f €\n", contract.BaseSalary())
+	fmt.Fprintf(os.Stdout, "Daily fees: %.2f €\n", feeSum)
+	fmt.Fprintf(os.Stdout, "Total: %.2f €\n", float64(contract.BaseSalary())+feeSum)
+	return nil
 }
 
 func (cmd *monthCmd) Run(args []string) error {
@@ -67,6 +121,9 @@ func (cmd *monthCmd) Run(args []string) error {
 	//TODO: save month sheet
 
 	//TODO: compute total month salary
-
-	return nil
+	f, err = os.Open("/tmp/MONTH_SHEET")
+	if err != nil {
+		return err
+	}
+	return readSheet(f, contract, now.Year(), now.Month())
 }
