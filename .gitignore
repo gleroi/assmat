@@ -12,3 +12,4 @@
 *.out
 cmd/paie/paie
 cmd/paie/db.toml
+cmd/paie/*.txt

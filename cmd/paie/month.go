@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"text/tabwriter"
 	"time"
 )
 
@@ -28,6 +29,7 @@ type dayEntry struct {
 	day        time.Time
 	WorkedHour float64
 	dailyFee   float64
+	mealFee    float64
 }
 
 func newDayEntry(day time.Time, contract assmat.Contract) dayEntry {
@@ -37,21 +39,22 @@ func newDayEntry(day time.Time, contract assmat.Contract) dayEntry {
 	}
 	if de.WorkedHour > 0 {
 		de.dailyFee = contract.DailyFee
+		de.mealFee = contract.MealFee
 	}
 	return de
 }
 
 func (de dayEntry) String() string {
-	return fmt.Sprintf("%s %s %.2f %.2f", weekDayStr[de.day.Weekday()],
-		de.day.Format("02/01/2006"), de.WorkedHour, de.dailyFee)
+	return fmt.Sprintf("%s\t%s\t%.2f\t%.2f\t%.2f", weekDayStr[de.day.Weekday()],
+		de.day.Format("02/01/2006"), de.WorkedHour, de.dailyFee, de.mealFee)
 }
 
 func (de *dayEntry) UnmarshalText(text []byte) error {
 	var dayStr string
 	var nameStr string
 
-	_, err := fmt.Sscanf(string(text), "%s %s %f %f", &nameStr,
-		&dayStr, &de.WorkedHour, &de.dailyFee)
+	_, err := fmt.Sscanf(string(text), "%s %s %f %f %f", &nameStr,
+		&dayStr, &de.WorkedHour, &de.dailyFee, &de.mealFee)
 	if err != nil {
 		return err
 	}
@@ -59,24 +62,47 @@ func (de *dayEntry) UnmarshalText(text []byte) error {
 	return err
 }
 
-func writeSheet(w io.Writer, contract assmat.Contract, year int, month time.Month) {
+func writeNewSheet(w io.Writer, contract assmat.Contract, year int, month time.Month) {
 	current := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
-	fmt.Fprintf(w, "#wd date       hour fee\n")
+	entries := make([]dayEntry, 0, 31)
 	for current.Month() <= month {
+		de := newDayEntry(current, contract)
+		entries = append(entries, de)
+		current = current.AddDate(0, 0, 1)
+	}
+	writeSheet(w, contract, entries)
+}
+
+func writeSheet(iw io.Writer, contract assmat.Contract, entries []dayEntry) {
+	w := tabwriter.NewWriter(iw, 0, 0, 1, ' ', 0)
+	fmt.Fprintf(w, "#wd\tdate\thour\tfee\tmeal\n")
+	for _, de := range entries {
+		current := de.day
 		if current.Weekday() == time.Monday {
 			fmt.Fprintf(w, "\n")
 		}
-		de := newDayEntry(current, contract)
 		fmt.Fprintf(w, "%s\n", de)
-		current = current.AddDate(0, 0, 1)
 	}
+	fmt.Fprintf(w, "\n")
+	writeSheetSummary(w, contract, entries)
+	w.Flush()
 }
 
-func readSheet(r io.Reader, contract assmat.Contract, year int, month time.Month) error {
+func writeSheetSummary(w io.Writer, contract assmat.Contract, entries []dayEntry) {
+	feeSum := 0.0
+	for _, de := range entries {
+		feeSum += de.dailyFee
+	}
+
+	fmt.Fprintf(w, "# Basic salary:\t %.2f €\n", contract.BaseSalary())
+	fmt.Fprintf(w, "# Daily fees:\t %.2f €\n", feeSum)
+	fmt.Fprintf(w, "# Total:\t %.2f €\n", float64(contract.BaseSalary())+feeSum)
+}
+
+func readSheet(r io.Reader, contract assmat.Contract) ([]dayEntry, error) {
 	scan := bufio.NewScanner(r)
 	count := 0
-
-	feeSum := 0.0
+	entries := make([]dayEntry, 0, 31)
 	for scan.Scan() {
 		count++
 		if scan.Text() == "" || strings.HasPrefix(scan.Text(), "#") {
@@ -85,14 +111,12 @@ func readSheet(r io.Reader, contract assmat.Contract, year int, month time.Month
 		var de dayEntry
 		err := de.UnmarshalText(scan.Bytes())
 		if err != nil {
-			return fmt.Errorf("line %d : %w", count, err)
+			return entries, fmt.Errorf("line %d : %w", count, err)
 		}
-		feeSum += de.dailyFee
+		entries = append(entries, de)
 	}
-	fmt.Fprintf(os.Stdout, "Basic salary: %.2f €\n", contract.BaseSalary())
-	fmt.Fprintf(os.Stdout, "Daily fees: %.2f €\n", feeSum)
-	fmt.Fprintf(os.Stdout, "Total: %.2f €\n", float64(contract.BaseSalary())+feeSum)
-	return nil
+
+	return entries, nil
 }
 
 func (cmd *monthCmd) Run(args []string) error {
@@ -110,7 +134,7 @@ func (cmd *monthCmd) Run(args []string) error {
 	if err != nil {
 		return err
 	}
-	writeSheet(f, contract, now.Year(), now.Month())
+	writeNewSheet(f, contract, now.Year(), now.Month())
 	f.Close()
 
 	err = openEditor("/tmp/MONTH_SHEET")
@@ -118,12 +142,24 @@ func (cmd *monthCmd) Run(args []string) error {
 		return err
 	}
 
-	//TODO: save month sheet
-
-	//TODO: compute total month salary
+	// read sheet
 	f, err = os.Open("/tmp/MONTH_SHEET")
 	if err != nil {
 		return err
 	}
-	return readSheet(f, contract, now.Year(), now.Month())
+	entries, err := readSheet(f, contract)
+	if err != nil {
+		return err
+	}
+
+	//TODO: save month sheet
+	//TODO: compute total month salary
+	f, err = os.Create(fmt.Sprintf("%04d_%02d_%s.txt", now.Year(), now.Month(), args[0]))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	writeSheet(f, contract, entries)
+	writeSheetSummary(os.Stdout, contract, entries)
+	return nil
 }

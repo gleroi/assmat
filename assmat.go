@@ -45,6 +45,7 @@ type Contract struct {
 	Name              string
 	HourlyRate        float64
 	DailyFee          float64
+	MealFee           float64
 	WeekSchedule      WeekSchedule
 	WorkedWeeksInYear int
 }
