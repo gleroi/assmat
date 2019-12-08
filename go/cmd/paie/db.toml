@@ -1,0 +1,15 @@
+[Contracts]
+  [Contracts.allison]
+    Name = "Alisson ABDELOUHAB"
+    HourlyRate = 5.1
+    DailyFee = 4.1
+    MealFee = 3.0
+    WeekSchedule = [0.0, 0.0, 0.0, 4.5, 0.0, 0.0, 0.0]
+    WorkedWeeksInYear = 44
+  [Contracts.christine]
+    Name = "Christine VESSERON"
+    HourlyRate = 3.9
+    DailyFee = 3.1
+    MealFee = 0.0
+    WeekSchedule = [0.0, 9.0, 9.0, 4.0, 9.0, 9.0, 0.0]
+    WorkedWeeksInYear = 45
