@@ -3,6 +3,8 @@ extern crate chrono;
 use std::str::FromStr;
 use std::fs;
 use std::io::BufRead;
+use std::error;
+use std::fmt;
 
 #[derive(PartialEq, Debug)]
 struct DayEntry {
@@ -17,19 +19,33 @@ struct ParseDayEntryError {
     cause: String
 }
 
-impl FromStr for DayEntry {
-    type Err = ParseDayEntryError;
+impl fmt::Display for ParseDayEntryError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.cause)
+    }
+}
 
-    fn from_str(s: &str) -> Result<Self, ParseDayEntryError> {
+impl error::Error for ParseDayEntryError {
+    fn source(&self) ->  Option<&(dyn error::Error + 'static)> {
+        Some(self)
+    }
+}
+
+impl FromStr for DayEntry {
+    type Err = Box<dyn error::Error>;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts : Vec<&str> = s.split_whitespace().collect();
         if parts.len() != 5 {
-            return Err(Self::Err{cause: "invalid fields count".to_owned()});
+            return Err(Box::new(ParseDayEntryError{cause: "invalid fields count".to_owned()}));
         }
         Ok(DayEntry{
-            day: chrono::NaiveDate::from_str(parts[1]).expect("day error"),
-            hours: 0.0,
-            fee: 0.0,
-            meal: 0.0,
+            day: chrono::NaiveDate::parse_from_str(parts[1], "%d/%m/%Y").or_else(|err| {
+                Err(format!("invalid date: {}", err))
+            })?,
+            hours: parts[2].parse::<f64>()?,
+            fee: parts[3].parse::<f64>()?,
+            meal: parts[4].parse::<f64>()?,
         })
     }
 }
