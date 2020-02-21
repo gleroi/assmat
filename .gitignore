@@ -10,9 +10,9 @@
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
-cmd/paie/paie
-cmd/paie/db.toml
-cmd/paie/*.txt
+go/cmd/paie/paie
+go/cmd/paie/db.toml
+go/cmd/paie/*.txt
 
 # rs
 target
